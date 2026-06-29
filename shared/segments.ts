@@ -9,7 +9,7 @@ export const SEGMENT_CONFIG: Record<SegmentName, {
   description: string;
   strategy: string;
 }> = {
-  Champions: {
+  Champions: { 
     color: '#818cf8',
     bgColor: 'rgba(99, 102, 241, 0.1)',
     borderColor: 'rgba(99, 102, 241, 0.3)',
