@@ -1,9 +1,10 @@
 import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, ShoppingCart, Activity, ArrowUpRight } from "lucide-react";
+import { Users, TrendingUp, ShoppingCart, Activity, ArrowUpRight, ArrowRight, AlertTriangle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { SEGMENT_CONFIG, SEGMENT_ORDER, type SegmentName } from "../../../shared/segments";
 import { Link } from "wouter";
@@ -280,7 +281,53 @@ export default function Dashboard() {
             </Card>
           </Link>
         ))}
-      </div>
+  </div>
+
+  <div className="mt-6">
+    <Card className="glass-card border-border/40">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          Migration Alerts
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <MigrationAlert />
+      </CardContent>
+    </Card>
+  </div>
+</div>
+);
+}
+
+
+function MigrationAlert() {
+  const { data: matrix = {} } = trpc.migrations.getMatrix.useQuery();
+  const alerts: { from: string; to: string; count: number }[] = [];
+  for (const [fromSeg, toMap] of Object.entries(matrix)) {
+    for (const [toSeg, count] of Object.entries(toMap)) {
+      if ((fromSeg === 'Champions' || fromSeg === 'Loyal') && (toSeg === 'At Risk' || toSeg === 'Regulars') && count > 0) {
+        alerts.push({ from: fromSeg, to: toSeg, count });
+      }
+    }
+  }
+  alerts.sort((a, b) => b.count - a.count);
+  const top = alerts.slice(0, 3);
+  if (top.length === 0) return <p className="text-xs text-muted-foreground">No migration alerts this period. Run the pipeline again to detect changes.</p>;
+  return (
+    <div className="space-y-2">
+      {top.map((a, i) => (
+        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{a.count} customers</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-xs px-2 py-0.5 rounded-md ${SEGMENT_CONFIG[a.from as keyof typeof SEGMENT_CONFIG]?.bg ?? 'bg-white/5'}`}>{a.from}</span>
+            <ArrowRight className="w-3 h-3 text-red-400" />
+            <span className="text-xs px-2 py-0.5 rounded-md bg-red-400/10 text-red-300">{a.to}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -69,8 +69,90 @@ export const predictions = pgTable("predictions", {
 export type Prediction = typeof predictions.$inferSelect;
 export type InsertPrediction = typeof predictions.$inferInsert;
 
+// Bulk prediction logs table
+export const predictionLogs = pgTable("prediction_logs", {
+  id: serial("id").primaryKey(),
+  batchId: varchar("batchId", { length: 64 }).notNull().unique(),
+  fileSize: integer("fileSize"),
+  rowCount: integer("rowCount"),
+  successCount: integer("successCount"),
+  errorCount: integer("errorCount"),
+  results: json("results"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PredictionLog = typeof predictionLogs.$inferSelect;
+export type InsertPredictionLog = typeof predictionLogs.$inferInsert;
+
+// Customer segment history table
+export const customerSegmentHistory = pgTable("customer_segment_history", {
+  id: serial("id").primaryKey(),
+  customerId: varchar("customerId", { length: 64 }).notNull(),
+  pipelineRunId: integer("pipelineRunId").notNull(),
+  segment: varchar("segment", { length: 50 }).notNull(),
+  recency: real("recency"),
+  frequency: real("frequency"),
+  monetary: real("monetary"),
+  aov: real("aov"),
+  tenure: real("tenure"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CustomerSegmentHistory = typeof customerSegmentHistory.$inferSelect;
+export type InsertCustomerSegmentHistory = typeof customerSegmentHistory.$inferInsert;
+
+// Segment migrations table
+export const segmentMigrations = pgTable("segment_migrations", {
+  id: serial("id").primaryKey(),
+  customerId: varchar("customerId", { length: 64 }).notNull(),
+  fromSegment: varchar("fromSegment", { length: 50 }),
+  toSegment: varchar("toSegment", { length: 50 }).notNull(),
+  pipelineRunId: integer("pipelineRunId").notNull(),
+  migrationDate: timestamp("migrationDate").defaultNow().notNull(),
+});
+export type SegmentMigration = typeof segmentMigrations.$inferSelect;
+export type InsertSegmentMigration = typeof segmentMigrations.$inferInsert;
+
+// Campaigns table
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  segmentName: varchar("segmentName", { length: 50 }).notNull(),
+  campaignType: varchar("campaignType", { length: 20 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  targetAudience: integer("targetAudience"),
+  status: varchar("status", { length: 20 }).default("draft").notNull(),
+  discountCode: varchar("discountCode", { length: 100 }),
+  emailTemplate: text("emailTemplate"),
+  owner: varchar("owner", { length: 255 }),
+  scheduledDate: timestamp("scheduledDate"),
+  sentCount: integer("sentCount").default(0),
+  openCount: integer("openCount").default(0),
+  clickCount: integer("clickCount").default(0),
+  conversionCount: integer("conversionCount").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = typeof campaigns.$inferInsert;
+
+// Drift metrics table
+export const driftMetrics = pgTable("drift_metrics", {
+  id: serial("id").primaryKey(),
+  pipelineRunId: integer("pipelineRunId").notNull(),
+  feature: varchar("feature", { length: 50 }).notNull(),
+  trainingMean: real("trainingMean"),
+  trainingStd: real("trainingStd"),
+  currentMean: real("currentMean"),
+  currentStd: real("currentStd"),
+  driftScore: real("driftScore"),
+  isDrifted: boolean("isDrifted").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DriftMetric = typeof driftMetrics.$inferSelect;
+export type InsertDriftMetric = typeof driftMetrics.$inferInsert;
+
+
 // Pipeline runs table
-export const pipelineRuns = pgTable("pipelineRuns", {
+export const pipeline_runs = pgTable("pipeline_runs", {
   id: serial("id").primaryKey(),
   status: varchar("status", { length: 15 }).default("pending").notNull(),
   triggeredBy: varchar("triggeredBy", { length: 15 }).default("manual").notNull(),
@@ -81,11 +163,11 @@ export const pipelineRuns = pgTable("pipelineRuns", {
   errorMessage: text("errorMessage"),
 });
 
-export type PipelineRun = typeof pipelineRuns.$inferSelect;
-export type InsertPipelineRun = typeof pipelineRuns.$inferInsert;
+export type PipelineRun = typeof pipeline_runs.$inferSelect;
+export type InsertPipelineRun = typeof pipeline_runs.$inferInsert;
 
 // Scheduled jobs table
-export const scheduledJobs = pgTable("scheduledJobs", {
+export const scheduled_jobs = pgTable("scheduled_jobs", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
   cronExpression: varchar("cronExpression", { length: 64 }).notNull(),
@@ -96,5 +178,5 @@ export const scheduledJobs = pgTable("scheduledJobs", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-export type ScheduledJob = typeof scheduledJobs.$inferSelect;
-export type InsertScheduledJob = typeof scheduledJobs.$inferInsert;
+export type ScheduledJob = typeof scheduled_jobs.$inferSelect;
+export type InsertScheduledJob = typeof scheduled_jobs.$inferInsert;

@@ -92,9 +92,9 @@ async function startServer() {
    const { getDb } = await import("../db");
    const dbConn = await getDb();
    if (!dbConn) throw new Error("DB not available");
-   const { customers, pipelineRuns } = await import("../../drizzle/schema");
+   const { customers, pipeline_runs } = await import("../../drizzle/schema");
    await dbConn.delete(customers);
-   await dbConn.delete(pipelineRuns);
+   await dbConn.delete(pipeline_runs);
    res.json({ success: true, message: "Database truncated" });
   } catch (e: any) {
    console.error("[Admin] Truncate error", e);

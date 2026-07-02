@@ -1,7 +1,7 @@
 import { parse } from "csv-parse/sync";
 import * as db from "./db.js";
 import { eq, sql } from "drizzle-orm";
-import { customers, pipelineRuns } from "../drizzle/schema.js";
+import { customers, pipeline_runs as pipelineRuns, customerSegmentHistory, segmentMigrations } from "../drizzle/schema.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

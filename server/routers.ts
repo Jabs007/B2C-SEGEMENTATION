@@ -28,6 +28,19 @@ import {
   getPCAVarianceData,
   getProjectionData,
   getClusteringValidation,
+  savePredictionLog,
+  insertSegmentHistory,
+  getSegmentHistory,
+  insertSegmentMigration,
+  getRecentMigrations,
+  getMigrationMatrix,
+  createCampaign,
+  listCampaigns,
+  updateCampaign,
+  launchCampaign,
+  trackCampaignMetrics,
+  insertDriftMetric,
+  getDriftMetrics,
 } from "./db";
 
 
@@ -273,21 +286,162 @@ analytics: router({
         return { success: true };
       }),
 
-    deleteSchedule: publicProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input, ctx }) => {
-        const jobs = await getScheduledJobs();
-        const job = jobs.find((job: any) => job.id === input.id);
-        if (job?.scheduleCronTaskUid) {
-          try {
-            const sessionToken = parseCookie(ctx.req.headers.cookie ?? '')[COOKIE_NAME] ?? '';
-            await deleteHeartbeatJob(job.scheduleCronTaskUid, sessionToken);
-          } catch (e: any) {
-            console.warn('[Pipeline] Heartbeat delete skipped:', e?.message);
-          }
+  deleteSchedule: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const jobs = await getScheduledJobs();
+      const job = jobs.find((job: any) => job.id === input.id);
+      if (job?.scheduleCronTaskUid) {
+        try {
+          const sessionToken = parseCookie(ctx.req.headers.cookie ?? '')[COOKIE_NAME] ?? '';
+          await deleteHeartbeatJob(job.scheduleCronTaskUid, sessionToken);
+        } catch (e: any) {
+          console.warn('[Pipeline] Heartbeat delete skipped:', e?.message);
         }
-        await deleteScheduledJob(input.id);
-        return { success: true };
+      }
+      await deleteScheduledJob(input.id);
+      return { success: true };
+    }),
+  }),
+
+  bulkPredict: publicProcedure
+    .input(
+      z.object({
+        results: z.array(
+          z.object({
+            rowIndex: z.number(),
+            recency: z.number(),
+            frequency: z.number(),
+            monetary: z.number(),
+            aov: z.number(),
+            tenure: z.number(),
+          })
+        ),
+        batchId: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { loadCentroids } = await import('./pipeline');
+      const centConfig = loadCentroids();
+      const dbConn = await getDb();
+      if (!dbConn) throw new Error('Database unavailable');
+      const rows = await dbConn.select().from(customerTable);
+      const featureNames = ['recency', 'frequency', 'monetary', 'aov', 'tenure'];
+      const n = rows.length || 1;
+      const means: Record<string, number> = {};
+      const stds: Record<string, number> = {};
+      featureNames.forEach((fn) => {
+        const sum = rows.reduce((s: number, r: any) => s + Number(r[fn] ?? 0), 0);
+        const mean = sum / n;
+        means[fn] = mean;
+        const variance = rows.reduce((s: number, r: any) => s + Math.pow(Number(r[fn] ?? 0) - mean, 2), 0) / n;
+        stds[fn] = Math.sqrt(variance) || 1;
+      });
+      const euclidean = (a: number[], b: number[]) => { let sum = 0; for (let i = 0; i < a.length; i++) sum += Math.pow(a[i] - b[i], 2); return Math.sqrt(sum); };
+      const segmentLabels = ['Champions', 'Loyal', 'At Risk', 'Regulars'] as const;
+      const results = input.results.map((row) => {
+        try {
+          const vector = [
+            (row.recency - means.recency) / stds.recency,
+            (row.frequency - means.frequency) / stds.frequency,
+            (row.monetary - means.monetary) / stds.monetary,
+            (row.aov - means.aov) / stds.aov,
+            (row.tenure - means.tenure) / stds.tenure,
+          ];
+          let bestIdx = 0;
+          let bestDist = Infinity;
+          (centConfig.centroids as number[][]).forEach((c, idx) => {
+            const d = euclidean(vector, c);
+            if (d < bestDist) { bestDist = d; bestIdx = idx; }
+          });
+          return {
+            rowIndex: row.rowIndex,
+            recency: row.recency,
+            frequency: row.frequency,
+            monetary: row.monetary,
+            aov: row.aov,
+            tenure: row.tenure,
+            predictedSegment: segmentLabels[bestIdx],
+            confidence: Number((1 / (1 + bestDist)).toFixed(2)),
+            distanceToCentroid: Number(bestDist.toFixed(4)),
+            error: null,
+          };
+        } catch (e: any) {
+          return {
+            rowIndex: row.rowIndex,
+            recency: row.recency,
+            frequency: row.frequency,
+            monetary: row.monetary,
+            aov: row.aov,
+            tenure: row.tenure,
+            predictedSegment: 'Regulars',
+            confidence: 0,
+            distanceToCentroid: 0,
+            error: e?.message ?? 'Unknown error',
+          };
+        }
+      });
+      const successCount = results.filter((r) => !r.error).length;
+      const errorCount = results.filter((r) => !!r.error).length;
+      try { await savePredictionLog({ batchId: input.batchId, fileSize: 0, rowCount: input.results.length, successCount, errorCount, results: results as any }); } catch {}
+      return { success: true, results, successCount, errorCount };
+    }),
+
+  migrations: router({
+    getRecent: publicProcedure.input(z.object({ limit: z.number().optional().default(50) })).query(async ({ input }) => getRecentMigrations(input.limit)),
+    getMatrix: publicProcedure.query(async () => getMigrationMatrix()),
+    getHistory: publicProcedure.input(z.object({ customerId: z.string() })).query(async ({ input }) => getSegmentHistory(input.customerId)),
+  }),
+
+  campaigns: router({
+    list: publicProcedure.input(z.object({ status: z.string().optional() })).query(async ({ input }) => listCampaigns(input.status)),
+    create: publicProcedure
+      .input(
+        z.object({
+          segmentName: z.string(),
+          campaignType: z.string(),
+          title: z.string(),
+          description: z.string().optional(),
+          targetAudience: z.number().optional(),
+          discountCode: z.string().optional(),
+          emailTemplate: z.string().optional(),
+          owner: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => createCampaign(input)),
+    update: publicProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          data: z.object({
+            status: z.string().optional(),
+            discountCode: z.string().optional(),
+            emailTemplate: z.string().optional(),
+            owner: z.string().optional(),
+          }),
+        })
+      )
+      .mutation(async ({ input }) => updateCampaign(input.id, input.data)),
+    launch: publicProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => launchCampaign(input.id)),
+    trackMetrics: publicProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          data: z.object({ sentCount: z.number().optional(), openCount: z.number().optional(), clickCount: z.number().optional() }),
+        })
+      )
+      .mutation(async ({ input }) => trackCampaignMetrics(input.id, input.data)),
+  }),
+
+  exports: router({
+    generateCsv: publicProcedure
+      .input(z.object({ data: z.any(), filename: z.string().default('export.csv') }))
+      .mutation(async ({ input }) => {
+        const { stringify } = await import('csv-stringify');
+        const csv = await new Promise<string>((resolve, reject) => {
+          stringify(input.data, { header: true }, (err, output) => { if (err) reject(err); else resolve(output); });
+        });
+        return { csv, filename: input.filename };
       }),
   }),
 });

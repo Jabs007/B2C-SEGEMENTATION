@@ -8,12 +8,15 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Predict from "./pages/Predict";
-import Explorer from "./pages/Explorer";
-import Visualizations from "./pages/Visualizations";
-import SegmentProfiles from "./pages/SegmentProfiles";
-import Pipeline from "./pages/Pipeline";
-import DataUpload from "./pages/DataUpload";
-import ReportViewer from "./pages/ReportViewer";
+import Explorer from "@/pages/Explorer";
+import Visualizations from "@/pages/Visualizations";
+import SegmentProfiles from "@/pages/SegmentProfiles";
+import Pipeline from "@/pages/Pipeline";
+import DataUpload from "@/pages/DataUpload";
+import ReportViewer from "@/pages/ReportViewer";
+import BulkPredict from "@/pages/BulkPredict";
+import SegmentMigrations from "@/pages/SegmentMigrations";
+import CampaignActionBoard from "@/pages/CampaignActionBoard";
 
 function AppRoutes() {
   return (
@@ -27,6 +30,9 @@ function AppRoutes() {
         <Route path="/pipeline" component={Pipeline} />
         <Route path="/upload" component={DataUpload} />
         <Route path="/report" component={ReportViewer} />
+        <Route path="/bulk-predict" component={BulkPredict} />
+        <Route path="/migrations" component={SegmentMigrations} />
+        <Route path="/campaigns" component={CampaignActionBoard} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

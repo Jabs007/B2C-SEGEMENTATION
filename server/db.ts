@@ -1,8 +1,8 @@
 import { eq, like, desc, asc, count, sql, and, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { InsertUser, users, customers, predictions, pipelineRuns, scheduledJobs } from "../drizzle/schema";
-import type { InsertCustomer, InsertPrediction, InsertPipelineRun } from "../drizzle/schema";
+import { InsertUser, users, customers, predictions, pipeline_runs, scheduled_jobs, predictionLogs, customerSegmentHistory, segmentMigrations, campaigns, driftMetrics } from "../drizzle/schema";
+import type { InsertCustomer, InsertPrediction, InsertPipelineRun, InsertPredictionLog, InsertCustomerSegmentHistory, InsertSegmentMigration, InsertCampaign, InsertDriftMetric } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: any = null;
@@ -106,8 +106,8 @@ export async function getDashboardStats() {
 
   const [recentPipeline] = await db
     .select()
-    .from(pipelineRuns)
-    .orderBy(desc(pipelineRuns.startedAt))
+    .from(pipeline_runs)
+    .orderBy(desc(pipeline_runs.startedAt))
     .limit(1);
 
   return {
@@ -168,6 +168,101 @@ export async function savePrediction(data: InsertPrediction) {
   await db.insert(predictions).values(data);
 }
 
+
+// ─── Prediction Logs ──────────────────────────────────────────────────────────
+export async function savePredictionLog(data: InsertPredictionLog) {
+  const dba = await getDb();
+  if (!dba) throw new Error("Database not available");
+  await dba.insert(predictionLogs).values(data);
+}
+export async function getPredictionLogs(limit = 50) {
+  const dba = await getDb();
+  if (!dba) return [];
+  return dba.select().from(predictionLogs).orderBy(desc(predictionLogs.createdAt)).limit(limit);
+}
+
+// ─── Customer Segment History ─────────────────────────────────────────────────
+export async function insertSegmentHistory(data: InsertCustomerSegmentHistory) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.insert(customerSegmentHistory).values(data);
+}
+export async function getSegmentHistory(customerId: string) {
+  const dba = await getDb();
+  if (!dba) return [];
+  return dba.select().from(customerSegmentHistory).where(eq(customerSegmentHistory.customerId, customerId)).orderBy(desc(customerSegmentHistory.createdAt));
+}
+
+// ─── Segment Migrations ───────────────────────────────────────────────────────
+export async function insertSegmentMigration(data: InsertSegmentMigration) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.insert(segmentMigrations).values(data);
+}
+export async function getRecentMigrations(limit = 50) {
+  const dba = await getDb();
+  if (!dba) return [];
+  return dba.select().from(segmentMigrations).orderBy(desc(segmentMigrations.migrationDate)).limit(limit);
+}
+export async function getMigrationMatrix() {
+  const dba = await getDb();
+  if (!dba) return {};
+  const rows = await dba.select({ fromSeg: segmentMigrations.fromSegment, toSeg: segmentMigrations.toSegment }).from(segmentMigrations);
+  const matrix: Record<string, Record<string, number>> = {};
+  const segments = ['Champions', 'Loyal', 'At Risk', 'Regulars'];
+  for (const from of segments) {
+    matrix[from] = {};
+    for (const to of segments) matrix[from][to] = 0;
+  }
+  for (const r of rows) {
+    const from = r.fromSeg ?? 'Unknown';
+    const to = r.toSeg;
+    if (matrix[from] && matrix[from][to] !== undefined) matrix[from][to]++;
+  }
+  return matrix;
+}
+
+// ─── Campaigns ────────────────────────────────────────────────────────────────
+export async function createCampaign(data: InsertCampaign) {
+  const dba = await getDb();
+  if (!dba) throw new Error("Database not available");
+  const result = await dba.insert(campaigns).values(data);
+  return result;
+}
+export async function listCampaigns(status?: string) {
+  const dba = await getDb();
+  if (!dba) return [];
+  const whereClause = status ? eq(campaigns.status, status) : undefined;
+  return dba.select().from(campaigns).where(whereClause).orderBy(desc(campaigns.createdAt));
+}
+export async function updateCampaign(id: number, data: Partial<{ status: string; discountCode: string; emailTemplate: string; owner: string }>) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.update(campaigns).set(data).where(eq(campaigns.id, id));
+}
+export async function launchCampaign(id: number) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.update(campaigns).set({ status: 'active' }).where(eq(campaigns.id, id));
+}
+export async function trackCampaignMetrics(id: number, data: Partial<{ sentCount: number; openCount: number; clickCount: number }>) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.update(campaigns).set(data).where(eq(campaigns.id, id));
+}
+
+// ─── Drift Metrics ────────────────────────────────────────────────────────────
+export async function insertDriftMetric(data: InsertDriftMetric) {
+  const dba = await getDb();
+  if (!dba) return;
+  await dba.insert(driftMetrics).values(data);
+}
+export async function getDriftMetrics(limit = 20) {
+  const dba = await getDb();
+  if (!dba) return [];
+  return dba.select().from(driftMetrics).orderBy(desc(driftMetrics.createdAt)).limit(limit);
+}
+
 export async function getRecentPredictions(limit = 10) {
   const db = await getDb();
   if (!db) return [];
@@ -179,7 +274,7 @@ export async function getRecentPredictions(limit = 10) {
 export async function createPipelineRun(triggeredBy: 'manual' | 'scheduled') {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(pipelineRuns).values({
+  const result = await db.insert(pipeline_runs).values({
     status: 'pending',
     triggeredBy,
     startedAt: new Date(),
@@ -196,19 +291,19 @@ export async function updatePipelineRun(id: number, data: Partial<{
 }>) {
   const db = await getDb();
   if (!db) return;
-  await db.update(pipelineRuns).set(data).where(eq(pipelineRuns.id, id));
+  await db.update(pipeline_runs).set(data).where(eq(pipeline_runs.id, id));
 }
 
 export async function getPipelineRuns(limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(pipelineRuns).orderBy(desc(pipelineRuns.startedAt)).limit(limit);
+  return db.select().from(pipeline_runs).orderBy(desc(pipeline_runs.startedAt)).limit(limit);
 }
 
 export async function getPipelineRunById(id: number) {
   const db = await getDb();
   if (!db) return null;
-  const [run] = await db.select().from(pipelineRuns).where(eq(pipelineRuns.id, id)).limit(1);
+  const [run] = await db.select().from(pipeline_runs).where(eq(pipeline_runs.id, id)).limit(1);
   return run ?? null;
 }
 
@@ -217,38 +312,38 @@ export async function getPipelineRunById(id: number) {
 export async function getScheduledJobs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scheduledJobs).orderBy(asc(scheduledJobs.id));
+  return db.select().from(scheduled_jobs).orderBy(asc(scheduled_jobs.id));
 }
 
 export async function createScheduledJob(data: { name: string; cronExpression: string; scheduleCronTaskUid?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(scheduledJobs).values({ ...data, isActive: true });
+  await db.insert(scheduled_jobs).values({ ...data, isActive: true });
 }
 
 export async function updateScheduledJobTaskUid(id: number, taskUid: string) {
   const db = await getDb();
   if (!db) return;
-  await db.update(scheduledJobs).set({ scheduleCronTaskUid: taskUid }).where(eq(scheduledJobs.id, id));
+  await db.update(scheduled_jobs).set({ scheduleCronTaskUid: taskUid }).where(eq(scheduled_jobs.id, id));
 }
 
 export async function getScheduledJobByTaskUid(taskUid: string) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select().from(scheduledJobs).where(eq(scheduledJobs.scheduleCronTaskUid, taskUid)).limit(1);
+  const result = await db.select().from(scheduled_jobs).where(eq(scheduled_jobs.scheduleCronTaskUid, taskUid)).limit(1);
   return result[0] ?? null;
 }
 
 export async function toggleScheduledJob(id: number, isActive: boolean) {
   const db = await getDb();
   if (!db) return;
-  await db.update(scheduledJobs).set({ isActive }).where(eq(scheduledJobs.id, id));
+  await db.update(scheduled_jobs).set({ isActive }).where(eq(scheduled_jobs.id, id));
 }
 
 export async function deleteScheduledJob(id: number) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(scheduledJobs).where(eq(scheduledJobs.id, id));
+  await db.delete(scheduled_jobs).where(eq(scheduled_jobs.id, id));
 }
 
 // ─── Analytics: Feature Distributions ─────────────────────────────────────────

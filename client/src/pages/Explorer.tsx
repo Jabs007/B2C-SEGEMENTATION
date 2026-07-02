@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "wouter";
 import { SEGMENT_CONFIG, SEGMENT_ORDER, type SegmentName } from "../../../shared/segments";
 
@@ -23,28 +24,18 @@ export default function Explorer() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const { data, isLoading } = trpc.customers.list.useQuery({
-    page,
-    pageSize: PAGE_SIZE,
+    page, pageSize: PAGE_SIZE,
     segment: segment === 'all' ? undefined : segment,
     search: search || undefined,
-    sortBy,
-    sortDir,
+    sortBy, sortDir,
   });
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
 
-  const handleSearch = () => {
-    setSearch(searchInput);
-    setPage(1);
-  };
-
+  const handleSearch = () => { setSearch(searchInput); setPage(1); };
   const handleSort = (col: string) => {
-    if (sortBy === col) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(col);
-      setSortDir('desc');
-    }
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('desc'); }
     setPage(1);
   };
 
@@ -70,11 +61,34 @@ export default function Explorer() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Segment Explorer</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Browse, filter, and sort all {data?.total.toLocaleString() ?? '7,551'} customers with their RFM scores and segment assignments
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Segment Explorer</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Browse, filter, and sort all {data?.total.toLocaleString() ?? '7,551'} customers with their RFM scores and segment assignments
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-white/10"
+          onClick={() => {
+            if (!data?.data?.length) return toast.error("No data to export");
+            const headers = Object.keys(data.data[0]);
+            const csv = [headers.join(","), ...data.data.map((r: any) => headers.map(h => r[h] ?? "").join(","))].join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "customers.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Exported " + data.data.length + " rows");
+          }}
+        >
+          <Download className="w-3.5 h-3.5 mr-1.5" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Filters */}
@@ -95,141 +109,120 @@ export default function Explorer() {
               </Button>
             </div>
 
-            {/* Segment Filter */}
-            <Select value={segment} onValueChange={v => { setSegment(v); setPage(1); }}>
-              <SelectTrigger className="w-44 bg-muted/50 border-border/60">
-                <SelectValue placeholder="All Segments" />
+            {/* Segment filter */}
+            <Select value={segment} onValueChange={setSegment}>
+              <SelectTrigger className="w-48 bg-muted/50 border-border/60 text-foreground">
+                <SelectValue placeholder="All segments" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Segments</SelectItem>
+                <SelectItem value="all">All segments</SelectItem>
                 {SEGMENT_ORDER.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
-            {/* Results count */}
-            {data && (
-              <span className="text-xs text-muted-foreground ml-auto">
-                {data.total.toLocaleString()} results
-              </span>
-            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Table */}
       <Card className="glass-card border-border/40 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {columns.map(col => (
-                  <th
-                    key={col.key}
-                    className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
-                    onClick={() => col.sortable && handleSort(col.key)}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {col.label}
-                      {col.sortable && <SortIcon col={col.key} />}
-</div>{!isLoading && (!data || data.total===0) && (
-  <div className="p-6 text-center text-sm text-muted-foreground">
-    No customers found. Upload data and run the pipeline.
-    <Link href="/upload">
-      <Button className="mt-2">Go to Data Upload</Button>
-    </Link>
-  </div>
-)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading
-                ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                    <tr key={i} className="border-b border-border/20">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left text-xs text-muted-foreground uppercase tracking-wider">
+                  {columns.map(col => (
+                    <th key={col.key} className={`py-3 px-4 font-medium ${col.sortable ? 'cursor-pointer hover:text-foreground transition-colors' : ''}`} onClick={() => col.sortable && handleSort(col.key)}>
+                      <div className="flex items-center gap-1">
+                        {col.label}
+                        {col.sortable && <SortIcon col={col.key} />}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/30">
                       {columns.map(col => (
-                        <td key={col.key} className="px-4 py-3">
-                          <Skeleton className="h-4 w-16" />
-                        </td>
+                        <td key={col.key} className="py-3 px-4"><Skeleton className="h-4 w-full" /></td>
                       ))}
                     </tr>
                   ))
-                : data?.data.map((customer: any) => {
-                    const config = SEGMENT_CONFIG[customer.segmentName as SegmentName];
+                ) : data?.data?.length === 0 ? (
+                  <tr><td colSpan={columns.length} className="py-8 text-center text-xs text-muted-foreground">No customers found matching your filters.</td></tr>
+                ) : (
+                  data?.data?.map((row: any) => {
+                    const seg = row.segmentName as SegmentName;
+                    const config = SEGMENT_CONFIG[seg];
                     return (
-                      <tr
-                        key={customer.customerId}
-                        className="border-b border-border/20 hover:bg-muted/20 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                          {customer.customerId}
+                      <tr key={row.id} className="border-b border-border/30 hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 px-4">
+                          <Link href={`/explorer?id=${row.customerId}`} className="font-mono text-xs text-primary hover:underline">
+                            {row.customerId}
+                          </Link>
                         </td>
-                        <td className="px-4 py-3">
-                          <Badge
-                            variant="outline"
-                            className="text-xs whitespace-nowrap"
-                            style={{ color: config?.color, borderColor: config?.borderColor }}
-                          >
-                            {config?.icon} {customer.segmentName}
-                          </Badge>
+                        <td className="py-3 px-4">
+                          {config ? (
+                            <Badge style={{ backgroundColor: config.bgColor, color: config.textColor, borderColor: config.borderColor }} className="text-[10px]">
+                              {seg}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs">{seg}</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.recency ?? '—'}
+                        <td className="py-3 px-4 font-mono text-xs">{row.recency}</td>
+                        <td className="py-3 px-4 font-mono text-xs">{row.frequency}</td>
+                        <td className="py-3 px-4 font-mono text-xs">{row.monetary}</td>
+                        <td className="py-3 px-4 font-mono text-xs">{row.aov}</td>
+                        <td className="py-3 px-4 text-xs">{row.categoryBreadth}</td>
+                        <td className="py-3 px-4">
+                          <span className={`text-xs ${(row.latePaymentRate ?? 0) > 0.3 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                            {((row.latePaymentRate ?? 0) * 100).toFixed(0)}%
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.frequency ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.monetary != null ? customer.monetary.toLocaleString() : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.aov != null ? customer.aov.toLocaleString() : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.categoryBreadth ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-foreground tabular-nums">
-                          {customer.latePaymentRate != null
-                            ? `${(customer.latePaymentRate * 100).toFixed(0)}%`
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {customer.region ?? 'Unknown'}
-                        </td>
+                        <td className="py-3 px-4 text-xs text-muted-foreground">{row.region}</td>
                       </tr>
                     );
-                  })}
-            </tbody>
-          </table>
-        </div>
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 bg-muted/10">
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {data?.total.toLocaleString() ?? '0'} total customers
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage(p => p - 1)}
+            className="border-white/10"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
           <span className="text-xs text-muted-foreground">
             Page {page} of {totalPages}
           </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1 || isLoading}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages || isLoading}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage(p => p + 1)}
+            className="border-white/10"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

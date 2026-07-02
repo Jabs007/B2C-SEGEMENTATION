@@ -4,16 +4,12 @@
 This report summarizes the B2C customer segmentation project.
 
 ## Dashboard Snapshot
-- Total Customers: 7931
-- Total Revenue: 23207618
+- Total Customers: 0
+- Total Revenue: 0
 
 ## Segment Distribution
-| Segment | Customers | Avg Recency | Avg Frequency | Avg Monetary | Revenue Share |
-| --- | --- | --- | --- | --- | --- |
-| At Risk | 6087 | 84 | 1 | 2456 | 64.4% |
-| Loyal | 707 | 218 | 1 | 3547 | 10.8% |
-| Regulars | 846 | 186 | 1 | 2931 | 10.7% |
-| Champions | 291 | 169 | 1 | 11245 | 14.1% |
+| Segment | customers |
+| --- | --- |
 
 ## Methodology
 - Invoices and contacts CSVs.
@@ -27,4 +23,4 @@ This report summarizes the B2C customer segmentation project.
 - Export results for stakeholder review.
 
 ## Generated On
-2026-06-27T23:06:23.900Z
+2026-06-29T10:46:20.959Z
