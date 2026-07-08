@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS customers (
+    "customerId" text PRIMARY KEY,
+    "segmentName" text,
+    cluster integer,
+    recency double precision,
+    frequency integer,
+    monetary double precision,
+    aov double precision,
+    "spendTrend" double precision,
+    "interPurchaseInterval" double precision,
+    "spendConcentration" double precision,
+    "categoryBreadth" integer,
+    "channelConsistency" integer,
+    "latePaymentRate" double precision,
+    "defaultFlag" integer,
+    tenure double precision,
+    "tenureAdjFreq" double precision,
+    "preferredCategory" text,
+    region text,
+    "createdAt" timestamp,
+    "updatedAt" timestamp
+);

@@ -1,0 +1,34 @@
+pipeline:
+  name: b2c_segmentation_etl
+  uuid: b2c_segmentation_etl_pipeline_v1
+
+blocks:
+  - uuid: load_customers
+    type: data_loader
+    file_path: data_loaders/load_customers.py
+    upstream_blocks: []
+
+  - uuid: compute_rfm
+    type: transformer
+    file_path: transformers/compute_rfm_metrics.py
+    upstream_blocks: [load_customers]
+
+  - uuid: assign_segments
+    type: transformer
+    file_path: transformers/assign_segments.py
+    upstream_blocks: [compute_rfm]
+
+  - uuid: write_pg
+    type: data_exporter
+    file_path: data_exporters/write_pg.py
+    upstream_blocks: [assign_segments]
+
+  - uuid: write_ch
+    type: data_exporter
+    file_path: data_exporters/write_ch.py
+    upstream_blocks: [assign_segments]
+
+  - uuid: notify_app
+    type: custom
+    file_path: custom/notify_app.py
+    upstream_blocks: [write_pg, write_ch]

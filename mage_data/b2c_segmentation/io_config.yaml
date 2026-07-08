@@ -1,0 +1,22 @@
+version: 1
+
+# Default profile used by all pipelines in this project.
+# Overridden via env vars, Mage's secret manager, or command-line flags.
+
+default:
+  # PostgreSQL (live B2C app database)
+  POSTGRES_DSN: postgresql://postgres:iconic2003@host.docker.internal:5432/b2c_segmentation
+  POSTGRES_HOST: host.docker.internal
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: b2c_segmentation
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: iconic2003
+
+  # ClickHouse (analytics warehouse)
+  CLICKHOUSE_NATIVE_HOST: host.docker.internal
+  CLICKHOUSE_NATIVE_PORT: 9001
+  CLICKHOUSE_HTTP_HOST: host.docker.internal
+  CLICKHOUSE_HTTP_PORT: 8124
+  CLICKHOUSE_DB: statspeak
+  CLICKHOUSE_USER: statspeak_user
+  CLICKHOUSE_PASSWORD: statspeak_password

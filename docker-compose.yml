@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-local
+    ports:
+      - "8124:8123"      # HTTP interface
+      - "9001:9000"      # Native protocol
+      - "9010:9009"      # Interserver HTTP
+    environment:
+      CLICKHOUSE_DB: statspeak
+      CLICKHOUSE_USER: statspeak_user
+      CLICKHOUSE_PASSWORD: statspeak_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./etl/clickhouse_init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'SELECT 1' | clickhouse-client --password=statspeak_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - statspeak-network
+
+volumes:
+  clickhouse_data:
+
+networks:
+  statspeak-network:
+    name: statspeak-network
+    external: true
