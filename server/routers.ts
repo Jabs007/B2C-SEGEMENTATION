@@ -464,7 +464,7 @@ async function simulatePipelineRun(runId: number) {
 }
 
 async function runPythonETL(): Promise<{ status: string; run_id: string; metrics: Record<string, unknown>; segment_distribution: Record<string, number> }> {
-  const scriptPath = `${process.cwd()}/etl_pipeline_integrated.py`;
+  const scriptPath = `${process.cwd()}/etl/etl_pipeline_integrated.py`;
   const py = process.platform === 'win32' ? 'python' : 'python3';
   return new Promise((resolve, reject) => {
     console.log(`[ETL] spawn: ${py} ${scriptPath}`);
