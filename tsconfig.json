@@ -8,6 +8,7 @@
     "downlevelIteration": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
+  "ignoreDeprecations": "6.0",
     "module": "Node16",
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
@@ -17,7 +18,6 @@
     "allowImportingTsExtensions": true,
   "moduleResolution": "node16",
   "baseUrl": ".",
-  "ignoreDeprecations": "6.0",
   "paths": {
     "@/*": ["./client/src/*"],
     "@shared/*": ["./shared/*"]

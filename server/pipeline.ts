@@ -1,7 +1,7 @@
 import { parse } from "csv-parse/sync";
 import * as db from "./db.js";
-import { eq, sql } from "drizzle-orm";
-import { customers, pipeline_runs as pipelineRuns, customerSegmentHistory, segmentMigrations } from "../drizzle/schema.js";
+import { eq, sql, desc } from "drizzle-orm";
+import { customers, pipeline_runs as pipelineRuns, customerSegmentHistory, segmentMigrations, mlModels } from "../drizzle/schema.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -161,12 +161,7 @@ function computeFeatures(invoiceRows: InvoiceRow[]): CustomerFeatures[] {
   return features;
 }
 
-// ─── K-Means with Fixed Centroids ───────────────────────────────────────────
-
-interface Centroid {
-  id: number;
-  values: number[];
-}
+// ─── K-Means with Model from Database ───────────────────────────────────────
 
 interface CentroidConfig {
   labels: string[];
@@ -174,51 +169,71 @@ interface CentroidConfig {
   featureNames: string[];
 }
 
-export function loadCentroids(): CentroidConfig {
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const configPath = path.resolve(process.cwd(), "config", "centroids.json");
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    }
-  } catch {
-    // fallback below
+interface ModelFromDB {
+  centroids: { centroids: number[][]; labels?: string[] };
+  scaler: { mean: number[]; scale: number[] };
+}
+
+// Load latest active model from PostgreSQL
+export async function loadModelFromDB(): Promise<ModelFromDB> {
+  const dbConn = await db.getDb();
+  if (!dbConn) throw new Error('Database unavailable');
+  
+  // Get latest active model
+  const activeModel = await dbConn
+    .select()
+    .from(mlModels)
+    .where(eq(mlModels.isActive, true))
+    .orderBy(desc(mlModels.createdAt))
+    .limit(1);
+    
+  if (activeModel.length === 0) {
+    throw new Error('No active K-Means model found. Please train a model first.');
   }
-  // Fallback centroids (trained from original 7,551 customers)
+  
+  const model = activeModel[0];
+  
+  // Debug: log what we got
+  console.log('[loadModelFromDB] Model keys:', Object.keys(model));
+  console.log('[loadModelFromDB] scaler_parameters value:', model.scaler_parameters);
+  console.log('[loadModelFromDB] centroids value:', model.centroids);
+  
+  // Extract centroids (property: centroids, matches schema)
+  const centroidsData = model.centroids as { centroids: number[][]; labels?: string[] } | null;
+  if (!centroidsData) {
+    throw new Error('Model is missing centroids. Please retrain the model.');
+  }
+  
+  // Extract scaler parameters (property: scalerParameters, NOT scaler_parameters)
+  const scalerData = model.scalerParameters as { mean: number[]; scale: number[] } | null;
+  if (!scalerData) {
+    throw new Error('Model is missing scaler parameters. Please retrain the model.');
+  }
+  
   return {
-    labels: ["Champions", "Loyal", "At Risk", "Regulars"],
-    centroids: [
-      [0.85, 0.92, 0.88, 0.83, 0.79],
-      [0.72, 0.65, 0.70, 0.68, 0.74],
-      [0.28, 0.35, 0.32, 0.30, 0.25],
-      [0.55, 0.48, 0.52, 0.50, 0.46],
-    ],
-    featureNames: ["recency", "frequency", "monetary", "aov", "tenure"],
+    centroids: centroidsData,
+    scaler: scalerData,
   };
 }
 
-function standardize(features: CustomerFeatures[]): number[][] {
+export function standardize(features: CustomerFeatures[]): number[][] {
   const matrix = features.map(f => [f.recency, f.frequency, f.monetary, f.aov, f.tenure]);
   const n = matrix.length;
   const cols = matrix[0].length;
-
   const means: number[] = [];
   const stds: number[] = [];
-
   for (let c = 0; c < cols; c++) {
     const sum = matrix.reduce((s, row) => s + row[c], 0);
     const mean = sum / n;
     const variance = matrix.reduce((s, row) => s + Math.pow(row[c] - mean, 2), 0) / n;
-    const std = Math.sqrt(variance) || 1; // avoid divide by zero
+    const std = Math.sqrt(variance) || 1;
     means.push(mean);
     stds.push(std);
   }
-
   return matrix.map(row => row.map((val, c) => (val - means[c]) / stds[c]));
 }
 
-function euclidean(a: number[], b: number[]): number {
+export function euclidean(a: number[], b: number[]): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) {
     sum += Math.pow(a[i] - b[i], 2);
@@ -226,15 +241,25 @@ function euclidean(a: number[], b: number[]): number {
   return Math.sqrt(sum);
 }
 
-function assignClusters(features: CustomerFeatures[], centroids: CentroidConfig): number[] {
-  const standardized = standardize(features);
+// Assign clusters using precomputed scaler (from training) and centroids (from model)
+export function assignClusters(
+  features: CustomerFeatures[], 
+  centroidsConfig: CentroidConfig,
+  scaler: { mean: number[]; scale: number[] }
+): number[] {
+  // Standardize features using the scaler from training (NOT from current batch)
+  const featureOrder = ['recency', 'frequency', 'monetary', 'aov', 'tenure'];
+  const standardized = features.map(f => {
+    const vals = [f.recency, f.frequency, f.monetary, f.aov, f.tenure];
+    return vals.map((val, idx) => (val - scaler.mean[idx]) / scaler.scale[idx]);
+  });
+  
   const clusterAssignments: number[] = [];
-
   for (const vector of standardized) {
     let minDist = Infinity;
     let bestCluster = 0;
-    for (let i = 0; i < centroids.centroids.length; i++) {
-      const dist = euclidean(vector, centroids.centroids[i]);
+    for (let i = 0; i < centroidsConfig.centroids.length; i++) {
+      const dist = euclidean(vector, centroidsConfig.centroids[i]);
       if (dist < minDist) {
         minDist = dist;
         bestCluster = i;
@@ -242,13 +267,10 @@ function assignClusters(features: CustomerFeatures[], centroids: CentroidConfig)
     }
     clusterAssignments.push(bestCluster);
   }
-
   return clusterAssignments;
 }
 
-// ─── Segment Mapping (based on cluster characteristics) ───────────────────────
-
-function mapSegment(clusterId: number, labels: string[]): string {
+export function mapSegment(clusterId: number, labels: string[]): string {
   return labels[clusterId] ?? "Regulars";
 }
 
@@ -291,11 +313,16 @@ export async function runPipeline(
     throw new Error("No valid customer data found after cleaning");
   }
 
-  // Step 3: K-Means Clustering
-  progressCallback(3, 5, "Running K-Means clustering...");
-  const centroids = loadCentroids();
-  const clusters = assignClusters(features, centroids);
-  log(`Assigned clusters using ${centroids.centroids.length} fixed centroids`);
+  // Step 3: Load Model & K-Means Clustering
+  progressCallback(3, 5, "Loading K-Means model from database...");
+  const model = await loadModelFromDB();
+  const centroidsConfig: CentroidConfig = {
+    labels: model.centroids.labels || ["Champions", "Loyal", "At Risk", "Regulars"],
+    centroids: model.centroids.centroids,
+    featureNames: ["recency", "frequency", "monetary", "aov", "tenure"],
+  };
+  const clusters = assignClusters(features, centroidsConfig, model.scaler);
+  log(`Assigned clusters using model ${centroidsConfig.labels.join(', ')} with saved scaler`);
 
   // Step 4: Map to segments and insert
   progressCallback(4, 5, "Updating database...");
@@ -315,18 +342,18 @@ export async function runPipeline(
   const now = new Date();
 
   const BATCH_SIZE = 500;
-  const rows = features.map((f, i) => ({
-    customerId: f.customerId,
-    segmentName: mapSegment(clusters[i], centroids.labels),
-    cluster: clusters[i],
-    recency: f.recency,
-    frequency: f.frequency,
-    monetary: f.monetary,
-    aov: f.aov,
-    tenure: f.tenure,
-    createdAt: now,
-    updatedAt: now,
-  }));
+   const rows = features.map((f, i) => ({
+     customerId: f.customerId,
+     segmentName: mapSegment(clusters[i], centroidsConfig.labels),
+     cluster: clusters[i],
+     recency: f.recency,
+     frequency: f.frequency,
+     monetary: f.monetary,
+     aov: f.aov,
+     tenure: f.tenure,
+     createdAt: now,
+     updatedAt: now,
+   }));
 
   rows.forEach(r => {
     if (!segments[r.segmentName]) segments[r.segmentName] = 0;

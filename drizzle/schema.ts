@@ -8,6 +8,8 @@ import {
   real,
   boolean,
   json,
+  jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -180,3 +182,48 @@ export const scheduled_jobs = pgTable("scheduled_jobs", {
 
 export type ScheduledJob = typeof scheduled_jobs.$inferSelect;
 export type InsertScheduledJob = typeof scheduled_jobs.$inferInsert;
+
+// ML model registry table
+export const mlModels = pgTable(
+  "ml_models",
+  {
+    modelId: serial("model_id").primaryKey(),
+    modelName: varchar("model_name", { length: 128 }).notNull(),
+    version: varchar("version", { length: 64 }).notNull(),
+    modelType: varchar("model_type", { length: 32 }).notNull(),
+    algorithm: varchar("algorithm", { length: 64 }),
+    hyperparameters: json("hyperparameters"),
+    trainingMetrics: json("training_metrics"),
+    status: varchar("status", { length: 20 }).default("production").notNull(),
+    featuresUsed: json("features_used"),
+    scalerParameters: json("scaler_parameters"),
+    centroids: jsonb("centroids"),
+    trainingDataCount: integer("training_data_count"),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    modelVersionUnique: unique().on(table.modelName, table.version),
+  }),
+);
+export type MLModel = typeof mlModels.$inferSelect;
+export type InsertMLModel = typeof mlModels.$inferInsert;
+export type CustomerClusterRow = {
+  customerId: string;
+  clusterId: number;
+  modelVersion: string;
+  predictedAt: Date;
+};
+
+export const customerClusters = pgTable(
+  "customer_clusters",
+  {
+    customerId: varchar("customerId", { length: 64 }).notNull(),
+    clusterId: integer("clusterId").notNull(),
+    modelVersion: varchar("modelVersion", { length: 64 }).notNull().default("kmeans_rfm_v1"),
+    predictedAt: timestamp("predictedAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: unique().on(table.customerId, table.modelVersion),
+  }),
+);

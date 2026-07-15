@@ -1,8 +1,8 @@
 import { eq, like, desc, asc, count, sql, and, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { InsertUser, users, customers, predictions, pipeline_runs, scheduled_jobs, predictionLogs, customerSegmentHistory, segmentMigrations, campaigns, driftMetrics } from "../drizzle/schema";
-import type { InsertCustomer, InsertPrediction, InsertPipelineRun, InsertPredictionLog, InsertCustomerSegmentHistory, InsertSegmentMigration, InsertCampaign, InsertDriftMetric } from "../drizzle/schema";
+import { InsertUser, users, customers, predictions, pipeline_runs, scheduled_jobs, predictionLogs, customerSegmentHistory, segmentMigrations, campaigns, driftMetrics, mlModels, customerClusters } from "../drizzle/schema";
+import type { InsertCustomer, InsertPrediction, InsertPipelineRun, InsertPredictionLog, InsertCustomerSegmentHistory, InsertSegmentMigration, InsertCampaign, InsertDriftMetric, InsertMLModel, InsertCustomerClusterRow } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: any = null;
@@ -338,6 +338,32 @@ export async function toggleScheduledJob(id: number, isActive: boolean) {
   const db = await getDb();
   if (!db) return;
   await db.update(scheduled_jobs).set({ isActive }).where(eq(scheduled_jobs.id, id));
+}
+
+// ─── ML Model Registry ──────────────────────────────────────────────────────────
+export async function createMLModel(data: InsertMLModel) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(mlModels).values(data);
+}
+
+export async function getActiveMLModel() {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(mlModels).where(eq(mlModels.isActive, true)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function getMLModelHistory(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(mlModels).orderBy(desc(mlModels.createdAt)).limit(limit);
+}
+
+export async function saveCustomerClusters(data: InsertCustomerClusterRow[]) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.insert(customerClusters).values(data);
 }
 
 export async function deleteScheduledJob(id: number) {

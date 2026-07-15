@@ -1,0 +1,24 @@
+pipeline:
+  name: train_kmeans_model
+  uuid: train_kmeans_model_pipeline_v1
+
+blocks:
+  - uuid: load_training_data
+    type: data_loader
+    file_path: data_loaders/load_training_data.py
+    upstream_blocks: []
+
+  - uuid: train_model
+    type: transformer
+    file_path: transformers/train_model.py
+    upstream_blocks: [load_training_data]
+
+  - uuid: register_model
+    type: data_exporter
+    file_path: data_exporters/register_model.py
+    upstream_blocks: [train_model]
+
+  - uuid: notify_app
+    type: custom
+    file_path: custom/notify_app.py
+    upstream_blocks: [register_model]

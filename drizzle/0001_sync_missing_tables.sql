@@ -69,3 +69,28 @@ CREATE TABLE IF NOT EXISTS "drift_metrics" (
 	"isDrifted" boolean DEFAULT false NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL
 );
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "customer_clusters" (
+  "customerId" varchar(64) NOT NULL,
+  "clusterId" integer NOT NULL,
+  "modelVersion" varchar(64) DEFAULT 'kmeans_rfm_v1' NOT NULL,
+  "predictedAt" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "ml_models" (
+  "model_id" serial PRIMARY KEY NOT NULL,
+  "model_name" varchar(128) NOT NULL,
+  "version" varchar(64) NOT NULL,
+  "model_type" varchar(32) NOT NULL,
+  "algorithm" varchar(64),
+  "hyperparameters" json,
+  "training_metrics" json,
+  "status" varchar(20) DEFAULT 'production' NOT NULL,
+  "features_used" json,
+  "scaler_parameters" json,
+  "centroids" jsonb,
+  "training_data_count" integer,
+  "is_active" boolean DEFAULT true NOT NULL,
+  "created_at" timestamp DEFAULT now() NOT NULL,
+  CONSTRAINT "model_version_unique" UNIQUE("model_name", "version")
+);
