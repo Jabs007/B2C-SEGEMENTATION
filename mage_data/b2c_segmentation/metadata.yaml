@@ -7,7 +7,9 @@ variables:
   ENV: dev
 
 profiles:
-  - default
-  - dev
-  - staging
-  - production
+- default
+- dev
+- staging
+- production
+help_improve_mage:
+pipelines:

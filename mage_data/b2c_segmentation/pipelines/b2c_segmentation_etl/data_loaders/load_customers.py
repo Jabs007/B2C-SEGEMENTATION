@@ -1,26 +1,24 @@
 """Block 1: load_customers_from_clickhouse (data_loader)
 
-Reads all customers from the ClickHouse `app_customers` table (migrated from
-PostgreSQL in Part A). Returns a pandas DataFrame.
+Reads all customers from the ClickHouse `app_customers` table.
+Returns a pandas DataFrame.
 """
 
+import os
 import pandas as pd
-from mage_ai.data_preparation.shared.secrets import get_secret_value
 from mage_ai.data_preparation.decorators import data_loader
 
 
 @data_loader
 def load_data(*args, **kwargs):
-    """
-    Return a pandas DataFrame of all customers.
-    """
+    """Return a pandas DataFrame of all customers."""
     import clickhouse_driver
 
-    host = get_secret_value('CLICKHOUSE_NATIVE_HOST') or 'localhost'
-    port = int(get_secret_word('CLICKHOUSE_NATIVE_PORT') or 9001)
-    user = get_secret_value('CLICKHOUSE_USER') or 'statspeak_user'
-    password = get_secret_value('CLICKHOUSE_PASSWORD') or 'statspeak_password'
-    database = get_secret_value('CLICKHOUSE_DB') or 'statspeak'
+    host = os.getenv('CLICKHOUSE_NATIVE_HOST', 'clickhouse')
+    port = int(os.getenv('CLICKHOUSE_NATIVE_PORT', 9000))
+    user = os.getenv('CLICKHOUSE_USER', 'statspeak_user')
+    password = os.getenv('CLICKHOUSE_PASSWORD', 'statspeak_password')
+    database = os.getenv('CLICKHOUSE_DB', 'statspeak')
 
     client = clickhouse_driver.Client(
         host=host, port=port, user=user, password=password, database=database

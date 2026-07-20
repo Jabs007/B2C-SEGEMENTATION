@@ -8,10 +8,10 @@ blocks:
     file_path: data_loaders/load_customers.py
     upstream_blocks: []
 
-  - uuid: compute_rfm
-    type: transformer
-    file_path: transformers/compute_rfm_metrics.py
-    upstream_blocks: [load_customers]
+   - uuid: compute_rfm
+     type: transformer
+     file_path: transformers/compute_rfm.py
+     upstream_blocks: [load_customers]
 
   - uuid: assign_segments
     type: transformer

@@ -4,10 +4,9 @@ Appends every scored customer to `customer_segments` and `segment_history`,
 and writes a single row to `pipeline_logs` summarising this Mage run.
 """
 
+import os
 import uuid
 from datetime import datetime
-
-from mage_ai.data_preparation.shared.secrets import get_secret_value
 
 if 'data_exporter' not in globals():
     from mage_ai.data_preparation.decorators import data_exporter
@@ -18,11 +17,12 @@ def export_data(df, *args, **kwargs):
     """Append rows to ClickHouse analytics tables."""
     import clickhouse_driver
 
-    host = get_secret_value('CLICKHOUSE_NATIVE_HOST') or 'clickhouse-local'
-    port = int(get_secret_value('CLICKHOUSE_NATIVE_PORT') or 9000)
-    user = get_secret_value('CLICKHOUSE_USER') or 'statspeak_user'
-    password = get_secret_value('CLICKHOUSE_PASSWORD') or 'statspeak_password'
-    database = get_secret_value('CLICKHOUSE_DB') or 'statspeak'
+    # Use environment variables (set in docker-compose.mage.yml)
+    host = os.getenv('CLICKHOUSE_NATIVE_HOST', 'clickhouse')
+    port = int(os.getenv('CLICKHOUSE_NATIVE_PORT', 9000))
+    user = os.getenv('CLICKHOUSE_USER', 'statspeak_user')
+    password = os.getenv('CLICKHOUSE_PASSWORD', 'statspeak_password')
+    database = os.getenv('CLICKHOUSE_DB', 'statspeak')
 
     client = clickhouse_driver.Client(
         host=host, port=port, user=user, password=password, database=database

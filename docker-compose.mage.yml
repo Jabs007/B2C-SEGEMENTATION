@@ -27,5 +27,15 @@ services:
     environment:
       MAGE_PROJECT_NAME: b2c_segmentation
       USER_CODE_PATH: /home/src/mage_data/b2c_segmentation
+      POSTGRES_HOST: host.docker.internal
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: b2c_segmentation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iconic2003
+      CLICKHOUSE_NATIVE_HOST: clickhouse
+      CLICKHOUSE_NATIVE_PORT: "9000"
+      CLICKHOUSE_USER: statspeak_user
+      CLICKHOUSE_PASSWORD: statspeak_password
+      CLICKHOUSE_DB: statspeak
     networks:
       - statspeak-network

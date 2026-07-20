@@ -1,16 +1,11 @@
 """Block 4: write_to_postgres (data_exporter)
 
-UPSERTs fresh segment labels + RFM features into the B2C app's
-PostgreSQL `customers` table. Uses INSERT ... ON CONFLICT DO UPDATE
-to preserve unrelated rows.
+UPSERTs segment data into PostgreSQL `customers` table.
 """
 
+import os
 from datetime import datetime
-
-from mage_ai.data_preparation.shared.secrets import get_secret_value
-
-if 'data_exporter' not in globals():
-    from mage_ai.data_preparation.decorators import data_exporter
+from mage_ai.data_preparation.decorators import data_exporter
 
 
 @data_exporter
@@ -18,9 +13,9 @@ def export_data(df, *args, **kwargs):
     """Idempotent UPSERT into PostgreSQL `customers`."""
     import psycopg2
 
-    dsn = (
-        get_secret_value('POSTGRES_DSN')
-        or 'postgresql://postgres:iconic2003@host.docker.internal:5432/b2c_segmentation'
+    dsn = os.getenv(
+        'POSTGRES_DSN',
+        'postgresql://postgres:iconic2003@host.docker.internal:5432/b2c_segmentation'
     )
     conn = psycopg2.connect(dsn)
     cur = conn.cursor()

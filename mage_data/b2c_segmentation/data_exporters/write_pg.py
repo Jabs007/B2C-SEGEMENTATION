@@ -5,9 +5,8 @@ PostgreSQL `customers` table. Uses INSERT ... ON CONFLICT DO UPDATE
 to preserve unrelated rows.
 """
 
+import os
 from datetime import datetime
-
-from mage_ai.data_preparation.shared.secrets import get_secret_value
 
 if 'data_exporter' not in globals():
     from mage_ai.data_preparation.decorators import data_exporter
@@ -19,8 +18,8 @@ def export_data(df, *args, **kwargs):
     import psycopg2
 
     dsn = (
-        get_secret_value('POSTGRES_DSN')
-        or 'postgresql://user:password@phc-postgres:5432/phc_db'
+        os.getenv('POSTGRES_DSN')
+        or 'postgresql://postgres:iconic2003@host.docker.internal:5432/b2c_segmentation'
     )
     conn = psycopg2.connect(dsn)
     cur = conn.cursor()

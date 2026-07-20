@@ -9,10 +9,9 @@ the pipeline run failed - the segments are already in ClickHouse and
 PostgreSQL.
 """
 
+import os
 import json
 import urllib.request
-
-from mage_ai.data_preparation.shared.secrets import get_secret_value
 
 if 'custom' not in globals():
     from mage_ai.data_preparation.decorators import custom
@@ -23,7 +22,7 @@ def notify_app(*args, **kwargs):
     """Hit B2C app's tRPC endpoint so UI reflects fresh data."""
 
     app_url = (
-        get_secret_value('B2C_APP_URL')
+        os.getenv('B2C_APP_URL')
         or 'http://host.docker.internal:3000'
     )
 
