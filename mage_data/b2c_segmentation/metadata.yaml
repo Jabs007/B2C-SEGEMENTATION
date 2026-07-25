@@ -1,0 +1,15 @@
+project_name: b2c_segmentation
+project_uuid: 4a3e2d1f-b1c0-4d2e-9f8a-1a2b3c4d5e6f
+
+api_version: 2.0.0
+
+variables:
+  ENV: dev
+
+profiles:
+- default
+- dev
+- staging
+- production
+help_improve_mage:
+pipelines:

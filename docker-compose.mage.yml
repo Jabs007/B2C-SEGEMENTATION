@@ -1,0 +1,41 @@
+version: "3.8"
+
+# Companion file for the B2C app: Mage AI orchestrator on port 6789.
+# Brings up a Mage container backed by the project tree under
+# ./mage_data/b2c_segmentation. ClickHouse already lives in the
+# project's primary docker-compose.yml; this file only adds mage.
+#
+# Run with:
+#   docker compose -f docker-compose.yml -f docker-compose.mage.yml up mage -d
+# (merges both compose files so the existing ClickHouse and its network stay available.)
+
+networks:
+  statspeak-network:
+    name: statspeak-network
+    external: true
+
+services:
+  mage:
+    image: mageai/mageai:latest
+    container_name: mage-local
+    restart: unless-stopped
+    ports:
+      - "6789:6789"
+      - "9090:9090"
+    volumes:
+      - ./mage_data:/home/src/mage_data
+    environment:
+      MAGE_PROJECT_NAME: b2c_segmentation
+      USER_CODE_PATH: /home/src/mage_data/b2c_segmentation
+      POSTGRES_HOST: host.docker.internal
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: b2c_segmentation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: iconic2003
+      CLICKHOUSE_NATIVE_HOST: clickhouse
+      CLICKHOUSE_NATIVE_PORT: "9000"
+      CLICKHOUSE_USER: statspeak_user
+      CLICKHOUSE_PASSWORD: statspeak_password
+      CLICKHOUSE_DB: statspeak
+    networks:
+      - statspeak-network

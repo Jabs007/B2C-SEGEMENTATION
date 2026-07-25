@@ -1,0 +1,16 @@
+# Mage pipeline trigger schedule.
+#
+# This file defines a daily @ 02:00 trigger for b2c_segmentation_etl.
+# In Mage 0.9 you either:
+#   1. Configure a trigger through the UI (Triggers tab -> New trigger)
+#   2. Place a `triggers.yaml` like this to bootstrap it.
+#
+# Both codes below target the `pipeline_uuid` defined in metadata.yaml.
+
+schedules:
+  - pipeline_uuid: b2c_segmentation_etl_pipeline_v1
+    name: daily_2am_etl
+    description: Daily B2C re-segmentation at 02:00 UTC
+    cron: "0 2 * * *"
+    timezone: UTC
+    paused: false

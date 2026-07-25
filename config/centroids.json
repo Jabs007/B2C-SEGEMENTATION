@@ -1,0 +1,10 @@
+{
+  "labels": ["Champions", "Loyal", "At Risk", "Regulars"],
+  "centroids": [
+    [-0.45, 1.82, 1.65, 1.21, 0.93],
+    [-0.38, 0.74, 1.42, 1.87, 0.61],
+    [1.92, -0.68, -0.71, -0.65, -0.82],
+    [0.31, -0.44, -0.38, -0.29, -0.17]
+  ],
+  "featureNames": ["recency", "frequency", "monetary", "aov", "tenure"]
+}
