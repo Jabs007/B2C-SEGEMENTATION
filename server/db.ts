@@ -113,7 +113,7 @@ export async function getDashboardStats() {
   return {
     totalCustomers,
     totalRevenue: Math.round(totalRevenue),
-    avgOrderValue: Math.round(totalRevenue / totalCustomers),
+    avgOrderValue: totalCustomers > 0 ? Math.round(totalRevenue / totalCustomers) : 0,
     segments,
     lastPipelineRun: recentPipeline ?? null,
   };

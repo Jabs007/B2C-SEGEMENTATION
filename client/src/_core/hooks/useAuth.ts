@@ -5,9 +5,28 @@ type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
 };
 
+function useAuth0Safe() {
+  try {
+    return useAuth0();
+  } catch {
+    return null;
+  }
+}
+
+const DUMMY_AUTH = {
+  user: undefined,
+  isAuthenticated: false,
+  isLoading: false,
+  loginWithRedirect: async () => {},
+  logout: async () => {},
+  getAccessTokenSilently: async () => "",
+} as ReturnType<typeof useAuth0>;
+
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false } = options ?? {};
   
+  const auth0 = useAuth0Safe() ?? DUMMY_AUTH;
+
   const {
     user,
     isAuthenticated,
@@ -15,7 +34,7 @@ export function useAuth(options?: UseAuthOptions) {
     loginWithRedirect,
     logout: auth0Logout,
     getAccessTokenSilently,
-  } = useAuth0();
+  } = auth0;
 
   const logout = useCallback(async () => {
     await auth0Logout({

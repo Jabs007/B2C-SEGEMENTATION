@@ -49,7 +49,6 @@ export function Auth0ProviderWrapper({ children }: Auth0ProviderWrapperProps) {
   const redirectUri = `${window.location.origin}/`;
 
   if (!domain || !clientId) {
-    console.error("[Auth0] Missing domain or clientId in environment variables");
     return <>{children}</>;
   }
 
