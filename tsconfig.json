@@ -3,24 +3,24 @@
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "types": ["vite/client"],
-  "incremental": true,
+    "incremental": true,
     "target": "ES2020",
     "downlevelIteration": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
-  "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "6.0",
     "module": "Node16",
+    "moduleResolution": "node16",
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-  "moduleResolution": "node16",
-  "baseUrl": ".",
-  "paths": {
-    "@/*": ["./client/src/*"],
-    "@shared/*": ["./shared/*"]
-  }
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
+    }
   }
 }
