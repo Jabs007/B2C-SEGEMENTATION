@@ -112,12 +112,14 @@ temp/
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
 .project-config.json
-<<<<<<< HEAD
-
 # Temp and debug artifacts
 temp_*.txt
+temp_*.md
 +String*
 *.backup
 data/test_write.txt
-=======
->>>>>>> main
+mage_data/
+scripts/check_*.py
+scripts/debug_*.py
+scripts/show_*.py
+scripts/test_*
