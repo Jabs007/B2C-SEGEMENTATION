@@ -1,6 +1,6 @@
 # B2C Customer Segmentation App
 
-A full-stack, ML-powered customer analytics and segmentation platform built for Statspeak as part of a Bachelor of Science in Data Science internship project.
+A full-stack, ML-powered customer analytics and segmentation platform built for Statspeak
 
 ## Overview
 
@@ -121,8 +121,7 @@ pip install -r requirements.txt
 ## Author
 
 Adams Jabali Momanyi  
-BSc Data Science 2025 Graduate  
-Data Science Intern @ Statspeak
+BSc Data Science 2025 Graduate
 
 - Portfolio: jabali-porfolio.vercel.app
 - GitHub: @Jabs007
@@ -130,7 +129,7 @@ Data Science Intern @ Statspeak
 
 ## Acknowledgements
 
-This project was developed under the supervision of the Statspeak data team as part of a Bachelor of Science in Data Science internship program. The methodology follows industry best practices for unsupervised customer segmentation using RFM analysis and K-Means clustering.
+This project was developed under the supervision of the Statspeak The methodology follows industry best practices for unsupervised customer segmentation using RFM analysis and K-Means clustering.
 
 ## License
 
