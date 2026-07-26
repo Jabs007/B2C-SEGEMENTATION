@@ -17,10 +17,11 @@ The B2C Customer Segmentation App is an end-to-end data science deployment that 
 | ORM | Drizzle ORM |
 | ML / Pipeline | scikit-learn (K-Means, RFM), Python ETL scripts |
 | Orchestration | Mage AI |
+| Testing | Vitest (82 tests across 8 test suites) |
 
 ## Project Structure
 
-```plaintext
+```
 B2C APP/
 ├── client/                # React frontend (Vite, Tailwind v4, shadcn/ui)
 │   └── src/
@@ -31,14 +32,17 @@ B2C APP/
 │   ├── _core/             # App bootstrap, auth, env, cookies, trpc router
 │   ├── routers.ts         # tRPC procedure definitions
 │   ├── pipeline.ts        # ML segmentation pipeline
+│   ├── mlRouter.ts        # ML prediction router (predict, bulkPredict)
 │   ├── clickhouse.ts      # ClickHouse client + queries
-│   └── db.ts              # Drizzle ORM database connection
+│   ├── db.ts              # Drizzle ORM database connection
+│   └── storage.ts         # Preconfigured storage helpers
 ├── shared/                # Types and utilities shared between client/server
 │   ├── types.ts
-│   ├── segments.ts
-│   └── const.ts
+│   ├── segments.ts        # Segment definitions (Champions, Loyal, At Risk, Regulars)
+│   ├── const.ts           # App constants
+│   └── _core/errors.ts    # Error classes (HttpError, BadRequestError, etc.)
 ├── config/                # App configuration
-│   └── centroids.json
+│   └── centroids.json     # K-Means centroid configuration
 ├── drizzle/               # Drizzle ORM migrations and schema
 │   ├── schema.ts
 │   ├── relations.ts
@@ -51,6 +55,7 @@ B2C APP/
 ├── scripts/               # Operational scripts
 │   ├── etl/               #    ETL builders and visualization generators
 │   ├── database/          #    DB inspection and schedule management
+│   ├── monitoring/        #    Health and status monitoring
 │   └── utilities/         #    ClickHouse client tests, pipeline validation
 ├── migrations/            # Legacy table migration scripts
 ├── setup/                 # DB creation and verification helpers
@@ -61,6 +66,7 @@ B2C APP/
 ├── docker-compose.yml     # ClickHouse service
 ├── docker-compose.mage.yml# Mage AI orchestrator (merges with primary compose)
 ├── requirements.txt       # Python dependencies
+├── vitest.config.ts       # Test configuration
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
@@ -89,7 +95,11 @@ pnpm install
 # Set up environment variables
 cp .env.example .env
 # Edit .env with your DATABASE_URL, CLICKHOUSE_URL, AUTH0 credentials, and JWT_SECRET
+```
 
+### Database Setup
+
+```bash
 # Run database migrations
 pnpm drizzle-kit generate
 pnpm drizzle-kit migrate
@@ -110,13 +120,37 @@ pnpm dev
 
 The app will be available at `http://localhost:3000`.
 
-## Optional: Python ETL Setup
+### Python ETL Setup (Optional)
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate  # Windows
+source .venv/bin/activate   # macOS / Linux
+# .venv\Scripts\activate    # Windows
 pip install -r requirements.txt
 ```
+
+## Testing
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm vitest
+```
+
+The test suite covers 82 tests across 8 files:
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `pipeline.test.ts` | 23 | Pipeline functions, data parsing, edge cases |
+| `segmentation.test.ts` | 13 | Segment config, order, RFM mapping |
+| `shared.test.ts` | 13 | Constants, segment definitions, error messages |
+| `mlRouter.test.ts` | 12 | Zod schema validation for predict inputs |
+| `clickhouse.test.ts` | 8 | ClickHouse query helpers, mocked fetch |
+| `kmeans.test.ts` | 6 | K-Means cluster assignment, determinism |
+| `errors.test.ts` | 6 | Error classes (HttpError, NotFoundError, etc.) |
+| `auth.logout.test.ts` | 1 | Auth logout procedure |
 
 ## Author
 
