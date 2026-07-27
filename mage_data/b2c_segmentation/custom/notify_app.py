@@ -1,44 +1,57 @@
-"""Block 6: notify_app (custom block)
-
-After both writes succeed, alert the B2C app to refresh its dashboard by
-hitting the tRPC pipeline.triggerPython endpoint over HTTP. This makes the
-new segments visible immediately to end users on the next page load.
-
-Note: this is a "best effort" notification. A failure here does not mean
-the pipeline run failed - the segments are already in ClickHouse and
-PostgreSQL.
+"""
+Custom block: notify_app
+Notifies the application that the model training pipeline has completed.
+This is called after the model is registered in PostgreSQL.
 """
 
 import os
 import json
-import urllib.request
+import requests
+from datetime import datetime, timezone
 
-if 'custom' not in globals():
-    from mage_ai.data_preparation.decorators import custom
+WEBHOOK_URL = os.getenv(
+    "TRAINING_WEBHOOK_URL",
+    "http://localhost:8080/api/webhooks/model-training-complete"
+)
 
 
-@custom
-def notify_app(*args, **kwargs):
-    """Hit B2C app's tRPC endpoint so UI reflects fresh data."""
-
-    app_url = (
-        os.getenv('B2C_APP_URL')
-        or 'http://host.docker.internal:3000'
-    )
+def execute(upstream_output, **kwargs):
+    model_id = upstream_output.get("model_id")
+    version = upstream_output.get("version", "unknown")
+    silhouette_score = upstream_output.get("silhouette_score", 0.0)
+    is_better = upstream_output.get("is_better_model", True)
+    status = upstream_output.get("status", "unknown")
 
     payload = {
-        '0': {'json': None, 'meta': {'values': ['undefined']}},
+        "model_id": model_id,
+        "version": version,
+        "silhouette_score": silhouette_score,
+        "is_better_model": is_better,
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "pipeline": "train_kmeans_model",
     }
-    body = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(
-        url=f"{app_url.rstrip('/')}/api/trpc/pipeline.triggerPython?batch=1",
-        data=body,
-        headers={'Content-Type': 'application/json'},
-        method='POST',
-    )
 
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return {'http_status': resp.status, 'response': resp.read().decode('utf-8')[:500]}
+        resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+        resp.raise_for_status()
     except Exception as exc:
-        return {'http_status': None, 'response': str(exc)}
+        print(f"[notify_app] Webhook failed: {exc}")
+
+    return {
+        "notified": True,
+        "model_id": model_id,
+        "payload": payload,
+    }
+
+
+if __name__ == "__main__":
+    mock = {
+        "model_id": 42,
+        "version": "kmeans_rfm_20260720_020000",
+        "silhouette_score": 0.651,
+        "is_better_model": True,
+        "status": "registered",
+    }
+    result = execute(mock)
+    print(json.dumps(result, indent=2))

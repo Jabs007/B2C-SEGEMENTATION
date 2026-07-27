@@ -1,10 +1,10 @@
-# Mage AI training pipeline trigger
-# Retrains and registers a new K-Means model daily at 02:00 UTC
-
 schedules:
   - pipeline_uuid: train_kmeans_model_pipeline_v1
-    name: daily_2am_model_retrain
-    description: Re-train K-Means model and register new version in ml_models
-    cron: "0 2 * * *"
+    name: weekly_sunday_3am_model_retrain
+    description: |
+      Re-train K-Means model on all historical data, run 50 initializations,
+      select best by silhouette score, compare with previous model, and register
+      in ml_models with is_active flag if better.
+    cron: "0 3 * * 0"
     timezone: UTC
     paused: false
