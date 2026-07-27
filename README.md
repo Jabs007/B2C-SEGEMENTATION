@@ -1,6 +1,6 @@
 # B2C Customer Segmentation App
 
-A full-stack, ML-powered customer analytics and segmentation platform built for Statspeak as part of a Bachelor of Science in Data Science internship project.
+A full-stack, ML-powered customer analytics and segmentation platform built for Statspeak
 
 ## Overview
 
@@ -155,9 +155,6 @@ The test suite covers 82 tests across 8 files:
 ## Author
 
 Adams Jabali Momanyi  
-BSc Data Science 2025 Graduate  
-Data Science Intern @ Statspeak
-
 - Portfolio: jabali-porfolio.vercel.app
 - GitHub: @Jabs007
 - LinkedIn: Adams Jabali
